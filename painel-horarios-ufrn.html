@@ -6,7 +6,8 @@
 <title>Agenda Acadêmica · UFRN/IMD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
   :root{
     --bg-void:#0e0a19;
@@ -103,15 +104,15 @@
     margin-top:4px;
     text-transform:capitalize;
   }
-  /* ---------- ORIGIN TOGGLE ---------- */
+  /* ---------- LIVE NAVIGATION ---------- */
   .origin-row{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:12px;
     background:var(--bg-panel);
     border:1px solid var(--divider);
     border-radius:var(--radius);
-    padding:12px 16px;
+    padding:13px 16px;
     flex-wrap:wrap;
   }
   .origin-row .label{
@@ -122,48 +123,181 @@
     text-transform:uppercase;
     margin-right:4px;
   }
-  .toggle-btn{
-    font-family:'Lato',sans-serif;
-    background:var(--bg-panel-raised);
+  .location-pulse{
+    position:relative;
+    width:10px;
+    height:10px;
+    flex:0 0 10px;
+    border-radius:50%;
+    background:var(--status-window);
+  }
+  .location-pulse::after{
+    content:"";
+    position:absolute;
+    inset:-5px;
+    border:1px solid var(--status-window);
+    border-radius:50%;
+    animation:locationPulse 1.8s ease-out infinite;
+  }
+  .location-pulse.ready{background:var(--status-ontime);}
+  .location-pulse.ready::after{border-color:var(--status-ontime);}
+  .location-pulse.error{background:var(--status-late);}
+  .location-pulse.error::after{animation:none; border-color:var(--status-late);}
+  @keyframes locationPulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.35);opacity:0}}
+  .route-card{
+    position:relative;
+    overflow:hidden;
+    background:var(--bg-panel);
     border:1px solid var(--divider);
-    color:var(--text-primary);
-    padding:8px 16px;
-    border-radius:999px;
-    font-size:13px;
-    letter-spacing:.06em;
-    cursor:pointer;
-    transition:.15s ease;
+    border-radius:var(--radius);
   }
-  .toggle-btn:hover{border-color:var(--amber);}
-  .toggle-btn.active{
+  .route-card::before{
+    content:"";
+    position:absolute;
+    z-index:2;
+    top:0;
+    left:0;
+    right:0;
+    height:2px;
+    pointer-events:none;
+    background:linear-gradient(90deg,var(--status-ontime),var(--amber),var(--amber-2));
+  }
+  .route-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:18px;
+    padding:17px 20px 14px;
+  }
+  .route-title{display:flex; align-items:flex-start; gap:11px;}
+  .route-pin{
+    display:grid;
+    place-items:center;
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    color:#170a26;
     background:var(--amber);
-    color:#1a0f2e;
-    border-color:var(--amber);
-    font-weight:700;
+    border-radius:50% 50% 50% 10px;
+    transform:rotate(-45deg);
+    box-shadow:0 0 18px rgba(212,140,255,.35);
   }
-  .toggle-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .route-pin .icon{transform:rotate(45deg); width:17px; height:17px;}
+  .route-title h2{margin:1px 0 3px; font:700 17px/1.2 'Lato',sans-serif;}
+  .route-title p{margin:0; color:var(--text-muted); font-size:12px; line-height:1.4;}
+  .route-live{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 9px;
+    border:1px solid rgba(99,230,157,.4);
+    border-radius:999px;
+    color:var(--status-ontime);
+    background:rgba(99,230,157,.1);
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.1em;
+    white-space:nowrap;
+    opacity:0;
+    transform:translateY(-3px);
+    transition:.2s ease;
+  }
+  .route-live.visible{opacity:1; transform:none;}
+  .route-live i{width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor;}
+  .route-stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1px;
+    background:var(--divider);
+    border-top:1px solid var(--divider);
+    border-bottom:1px solid var(--divider);
+  }
+  .route-stat{padding:12px 18px; background:var(--bg-panel-raised);}
+  .route-stat span{display:block; margin-bottom:3px; color:var(--text-muted); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;}
+  .route-stat strong{font:700 21px/1 'Lato',sans-serif; font-variant-numeric:tabular-nums;}
+  .route-stat.arrival strong{color:var(--amber);}
+  #routeMap{height:330px; background:#171023; isolation:isolate;}
+  .leaflet-container{font-family:'Lato',sans-serif;}
+  .leaflet-control-attribution{font-size:9px; background:rgba(14,10,25,.8)!important; color:var(--text-muted);}
+  .leaflet-control-attribution a{color:var(--amber);}
+  .leaflet-bar a{background:var(--bg-panel)!important; color:var(--text-primary)!important; border-color:var(--divider)!important;}
+  .nav-user-marker,.nav-destination-marker{background:transparent; border:0;}
+  .nav-user-dot{
+    display:block;
+    width:18px;
+    height:18px;
+    border:4px solid #fff;
+    border-radius:50%;
+    background:#4f8cff;
+    box-shadow:0 0 0 8px rgba(79,140,255,.25),0 3px 12px rgba(0,0,0,.5);
+  }
+  .nav-destination-dot{
+    display:grid;
+    place-items:center;
+    width:29px;
+    height:29px;
+    color:#170a26;
+    background:var(--amber);
+    border:3px solid #fff;
+    border-radius:50% 50% 50% 8px;
+    box-shadow:0 3px 12px rgba(0,0,0,.5);
+    transform:rotate(-45deg);
+    font-size:11px;
+    font-weight:900;
+  }
+  .nav-destination-dot b{transform:rotate(45deg);}
+  .route-actions{display:flex; align-items:center; gap:9px; padding:14px 16px; flex-wrap:wrap;}
+  .nav-btn{
+    font-family:'Lato',sans-serif;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    min-height:42px;
+    padding:9px 16px;
+    color:#170a26;
+    background:linear-gradient(135deg,var(--amber),var(--amber-2));
+    border:1px solid var(--amber);
+    border-radius:8px;
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:.07em;
+    text-decoration:none;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:transform .15s ease,box-shadow .15s ease,opacity .15s ease;
+  }
+  .nav-btn:hover{transform:translateY(-1px); box-shadow:0 5px 18px rgba(181,101,245,.32);}
+  .nav-btn:disabled{cursor:wait; opacity:.62; transform:none; box-shadow:none;}
+  .nav-btn.secondary{color:var(--text-primary); background:var(--bg-panel-raised); border-color:var(--divider);}
+  .nav-btn.secondary:hover{border-color:var(--amber);}
+  .nav-btn .icon{width:16px; height:16px;}
+  .nav-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .travel-note{
     font-size:12px;
     color:var(--text-muted);
     margin-left:auto;
+    line-height:1.35;
   }
   @media (max-width: 560px){
     .origin-row{
-      flex-direction:column;
-      align-items:stretch;
+      align-items:flex-start;
     }
     .origin-row .label{
-      margin-right:0;
-      margin-bottom:2px;
-    }
-    .toggle-btn{
-      width:100%;
-      text-align:center;
+      flex:1;
     }
     .travel-note{
-      margin-left:0;
-      text-align:center;
+      flex-basis:100%;
+      margin-left:22px;
     }
+    .route-head{padding:15px 16px 13px;}
+    .route-live{position:absolute; right:13px; top:13px;}
+    .route-title{padding-right:48px;}
+    .route-stats{grid-template-columns:1fr 1fr;}
+    .route-stat:last-child{grid-column:1/-1;}
+    #routeMap{height:300px;}
+    .route-actions{display:grid; grid-template-columns:1fr;}
+    .nav-btn{width:100%;}
   }
   /* ---------- VIEW TABS ---------- */
   .view-tabs{
@@ -272,23 +406,21 @@
   .status-flap{
     margin:0 20px 20px;
     border-radius:8px;
-    padding:14px 16px;
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:space-between;
-    align-items:center;
-    gap:10px;
+    padding:18px 20px;
     border:1px solid transparent;
     transition:background .2s ease, border-color .2s ease;
   }
   .status-flap .status-text{
     font-family:'Lato',sans-serif;
-    font-weight:700;
-    letter-spacing:.06em;
-    font-size:15px;
+    font-weight:900;
+    letter-spacing:.035em;
+    font-size:clamp(21px,4.5vw,31px);
+    line-height:1.05;
   }
   .status-flap .status-detail{
+    margin-top:8px;
     font-size:13px;
+    line-height:1.45;
     color:var(--text-primary);
     opacity:.96;
   }
@@ -316,6 +448,7 @@
 
   .departure-window{
     margin:0 20px 20px;
+    padding:12px 14px;
     font-family:'Lato',sans-serif;
     font-variant-numeric:tabular-nums;
     font-size:13px;
@@ -323,6 +456,9 @@
     display:flex;
     gap:18px;
     flex-wrap:wrap;
+    background:var(--bg-panel-raised);
+    border:1px solid var(--divider);
+    border-radius:8px;
   }
   .departure-window b{color:var(--text-primary);}
 
@@ -499,7 +635,16 @@
   .calendar-key i{display:inline-block; width:8px; height:8px; margin-right:4px; border-radius:2px; background:rgba(212,140,255,.82);}
   .calendar-key .key-holiday{background:rgba(255,122,122,.9);}
   @media (max-width:560px){
-    .view-tabs{flex-wrap:wrap;}.view-tab{min-width:calc(50% - 4px);}
+    .view-tabs{display:grid; grid-template-columns:repeat(2,minmax(0,1fr));}
+    .view-tab{min-width:0; padding:10px 6px; font-size:11px; white-space:normal;}
+    #tabCalendario{grid-column:1/-1;}
+    .flap-body{gap:12px;}
+    .flap-times{flex:1 1 100%; min-width:0; text-align:left;}
+    .flap-times .range{font-size:24px;}
+    .status-flap{padding:16px;}
+    .status-flap .status-text{overflow-wrap:anywhere;}
+    .departure-window{gap:8px 14px;}
+    .departure-window span{flex:1 1 140px;}
     .semester-hero{grid-template-columns:1fr;}.countdown{text-align:left;}.semester-hero::after{font-size:50px;}
     .calendar-day{min-height:72px; padding:5px 4px;}.class-chip{font-size:7.5px;}.holiday-mark{font-size:8px;}
     .semester-map{grid-template-columns:repeat(2,1fr);}.mini-month:last-child{grid-column:span 2;}
@@ -528,11 +673,9 @@
   </div>
 
   <div class="origin-row" data-view="painel">
-    <span class="label">Você está em:</span>
-    <button class="toggle-btn" id="btnCasa" data-origin="casa">Casa / outro local · 25–35 min</button>
-    <button class="toggle-btn" id="btnIfrn" data-origin="ifrn">IFRN · 8–17 min</button>
-    <button class="toggle-btn" id="btnUfrn" data-origin="ufrn">UFRN · já estou aqui</button>
-    <span class="travel-note" id="travelNote">detectando sua localização…</span>
+    <span class="location-pulse" id="locationPulse" aria-hidden="true"></span>
+    <span class="label">Origem automática: sua localização atual</span>
+    <span class="travel-note" id="travelNote" aria-live="polite">Aguardando permissão para acessar o GPS…</span>
   </div>
 
   <div class="flap-card" data-view="painel">
@@ -553,12 +696,33 @@
         <div class="range" id="ccRange">--:-- – --:--</div>
       </div>
     </div>
-    <div class="status-flap" id="statusFlap">
+    <div class="status-flap" id="statusFlap" aria-live="polite">
       <div class="status-text" id="statusText">CALCULANDO…</div>
       <div class="status-detail" id="statusDetail">—</div>
     </div>
     <div class="departure-window" id="departureWindow"></div>
   </div>
+
+  <section class="route-card" data-view="painel" aria-labelledby="routeTitle">
+    <div class="route-head">
+      <div class="route-title">
+        <span class="route-pin" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <div><h2 id="routeTitle">Rota para o IMD · UFRN</h2><p>Destino fixo · Instituto Metrópole Digital, Campus Central</p></div>
+      </div>
+      <span class="route-live" id="routeLive"><i></i> AO VIVO</span>
+    </div>
+    <div class="route-stats" aria-live="polite">
+      <div class="route-stat"><span>Tempo restante</span><strong id="routeDuration">—</strong></div>
+      <div class="route-stat"><span>Distância</span><strong id="routeDistance">—</strong></div>
+      <div class="route-stat arrival"><span>Previsão de chegada</span><strong id="routeArrival">—</strong></div>
+    </div>
+    <div id="routeMap" role="application" aria-label="Mapa da rota entre sua localização atual e o Instituto Metrópole Digital"></div>
+    <div class="route-actions">
+      <button class="nav-btn" id="startNavigation" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Iniciar navegação</span></button>
+      <a class="nav-btn secondary" id="openMaps" href="https://www.google.com/maps/dir/?api=1&destination=-5.8323008%2C-35.2054603&travelmode=driving&dir_action=navigate" target="_blank" rel="noopener noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-7 7"/><path d="M21 10H9a6 6 0 0 0-6 6v5"/></svg>Abrir no Google Maps</a>
+      <span class="travel-note" id="routeStatus">Localizando você para calcular a melhor rota de carro.</span>
+    </div>
+  </section>
 
   <div class="section" data-view="painel">
     <h2>Aulas de hoje</h2>
@@ -607,6 +771,7 @@
 
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 (function(){
   "use strict";
@@ -655,20 +820,32 @@
     {start:'16:40', end:'18:20'}
   ];
 
-  const TRAVEL = {
-    casa: {min:25, max:35, label:'Casa'},
-    ifrn: {min:8,  max:17, label:'IFRN'},
-    ufrn: {min:0, max:0, label:'UFRN'}
+  const IMD_DESTINATION = {
+    lat:-5.8323008,
+    lng:-35.2054603,
+    label:'Instituto Metrópole Digital · UFRN'
   };
-  const CAMPUS_LOCATIONS = {
-    ifrn: {lat:-5.8119, lng:-35.20316, radius:650, label:'IFRN Natal-Central'},
-    ufrn: {lat:-5.8390, lng:-35.2055, radius:1300, label:'Campus Central da UFRN'}
-  };
+  const ROUTE_REFRESH_DISTANCE = 35;
+  const ROUTE_REFRESH_INTERVAL = 20000;
+  const PLANNING_ROUTE_REFRESH_INTERVAL = 120000;
+  const FALLBACK_TRAVEL_MINUTES = 35;
+  const DEPARTURE_BUFFER_MINUTES = 10;
 
-  let origin = 'casa';
   let lastPhase = null;
   let calendarMonth = 7;
   let selectedDate = new Date(2026, 7, 10);
+  let routeMap = null;
+  let routeLine = null;
+  let userMarker = null;
+  let accuracyCircle = null;
+  let destinationMarker = null;
+  let navigationWatchId = null;
+  let navigationActive = false;
+  let currentLocation = null;
+  let lastRouteLocation = null;
+  let lastRouteAt = 0;
+  let routeRequestController = null;
+  let routeState = {durationSeconds:null, distanceMeters:null, arrival:null};
 
   // ---------- HELPERS ----------
   function pad(n){ return n.toString().padStart(2,'0'); }
@@ -687,6 +864,227 @@
     const dLat = (lat2-lat1) * toRad, dLng = (lng2-lng1) * toRad;
     const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1*toRad) * Math.cos(lat2*toRad) * Math.sin(dLng/2) ** 2;
     return 2 * earth * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function liveTravelMinutes(){
+    return routeState.durationSeconds === null
+      ? FALLBACK_TRAVEL_MINUTES
+      : Math.max(0, Math.ceil(routeState.durationSeconds / 60));
+  }
+
+  function formatRouteDuration(seconds){
+    if(seconds === null) return '—';
+    if(seconds < 60) return '< 1 min';
+    const minutes = Math.ceil(seconds / 60);
+    if(minutes < 60) return minutes + ' min';
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours + 'h' + (rest ? ' ' + rest + 'min' : '');
+  }
+
+  function formatRouteDistance(meters){
+    if(meters === null) return '—';
+    if(meters < 1000) return Math.max(0, Math.round(meters / 10) * 10) + ' m';
+    return (meters / 1000).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' km';
+  }
+
+  function updateRouteStats(){
+    document.getElementById('routeDuration').textContent = formatRouteDuration(routeState.durationSeconds);
+    document.getElementById('routeDistance').textContent = formatRouteDistance(routeState.distanceMeters);
+    document.getElementById('routeArrival').textContent = routeState.durationSeconds === null
+      ? '—'
+      : fmtTime(new Date(Date.now() + routeState.durationSeconds * 1000));
+  }
+
+  function initializeRouteMap(){
+    if(typeof L === 'undefined'){
+      document.getElementById('routeStatus').textContent = 'Não foi possível carregar o mapa. Use “Abrir no Google Maps”.';
+      return;
+    }
+    routeMap = L.map('routeMap', {zoomControl:true, attributionControl:true})
+      .setView([IMD_DESTINATION.lat, IMD_DESTINATION.lng], 15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom:19,
+      attribution:'&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(routeMap);
+    const destinationIcon = L.divIcon({
+      className:'nav-destination-marker',
+      html:'<span class="nav-destination-dot"><b>IMD</b></span>',
+      iconSize:[29,29],
+      iconAnchor:[14,27]
+    });
+    destinationMarker = L.marker([IMD_DESTINATION.lat, IMD_DESTINATION.lng], {icon:destinationIcon})
+      .addTo(routeMap)
+      .bindPopup('<b>Instituto Metrópole Digital</b><br>Destino · UFRN');
+  }
+
+  function setLocationState(state, message){
+    const pulse = document.getElementById('locationPulse');
+    pulse.classList.toggle('ready', state === 'ready');
+    pulse.classList.toggle('error', state === 'error');
+    document.getElementById('travelNote').textContent = message;
+  }
+
+  function updateUserOnMap(location){
+    if(!routeMap) return;
+    const point = [location.lat, location.lng];
+    if(!userMarker){
+      const userIcon = L.divIcon({className:'nav-user-marker', html:'<span class="nav-user-dot"></span>', iconSize:[18,18], iconAnchor:[9,9]});
+      userMarker = L.marker(point, {icon:userIcon, zIndexOffset:1000}).addTo(routeMap).bindPopup('Sua localização atual');
+      accuracyCircle = L.circle(point, {
+        radius:location.accuracy,
+        color:'#4f8cff',
+        weight:1,
+        opacity:.55,
+        fillColor:'#4f8cff',
+        fillOpacity:.1
+      }).addTo(routeMap);
+    } else {
+      userMarker.setLatLng(point);
+      accuracyCircle.setLatLng(point).setRadius(location.accuracy);
+    }
+    if(navigationActive){
+      if(routeMap.getZoom() < 15) routeMap.setView(point, 16, {animate:true});
+      else routeMap.panTo(point, {animate:true, duration:.5});
+    }
+  }
+
+  function showArrivedState(){
+    routeState = {durationSeconds:0, distanceMeters:0, arrival:new Date()};
+    updateRouteStats();
+    document.getElementById('routeStatus').textContent = 'Você chegou ao Instituto Metrópole Digital.';
+    if(routeLine){ routeMap.removeLayer(routeLine); routeLine = null; }
+  }
+
+  async function calculateRoute(location, force){
+    const moved = !lastRouteLocation || distanceInMeters(
+      lastRouteLocation.lat,
+      lastRouteLocation.lng,
+      location.lat,
+      location.lng
+    ) >= ROUTE_REFRESH_DISTANCE;
+    const expired = Date.now() - lastRouteAt >= ROUTE_REFRESH_INTERVAL;
+    if(!force && !moved && !expired) return;
+
+    const directDistance = distanceInMeters(location.lat, location.lng, IMD_DESTINATION.lat, IMD_DESTINATION.lng);
+    if(directDistance <= Math.max(55, location.accuracy)){
+      showArrivedState();
+      return;
+    }
+
+    if(routeRequestController) routeRequestController.abort();
+    routeRequestController = new AbortController();
+    document.getElementById('routeStatus').textContent = navigationActive
+      ? 'Atualizando rota e previsão de chegada…'
+      : 'Calculando a melhor rota de carro até o IMD…';
+
+    const coordinates = location.lng + ',' + location.lat + ';' + IMD_DESTINATION.lng + ',' + IMD_DESTINATION.lat;
+    const url = 'https://router.project-osrm.org/route/v1/driving/' + coordinates + '?overview=full&geometries=geojson&steps=false';
+    try{
+      const response = await fetch(url, {signal:routeRequestController.signal});
+      if(!response.ok) throw new Error('route-http-' + response.status);
+      const data = await response.json();
+      if(data.code !== 'Ok' || !data.routes || !data.routes[0]) throw new Error('route-not-found');
+      const route = data.routes[0];
+      routeState = {durationSeconds:route.duration, distanceMeters:route.distance, arrival:new Date(Date.now() + route.duration * 1000)};
+      lastRouteLocation = {lat:location.lat, lng:location.lng};
+      lastRouteAt = Date.now();
+      updateRouteStats();
+      setLocationState('ready', 'GPS ativo · trajeto consultado agora: ' + formatRouteDuration(route.duration));
+
+      if(routeMap){
+        if(routeLine) routeMap.removeLayer(routeLine);
+        routeLine = L.geoJSON(route.geometry, {
+          style:{color:'#d48cff', weight:6, opacity:.92, lineCap:'round', lineJoin:'round'}
+        }).addTo(routeMap);
+        if(!navigationActive){
+          routeMap.fitBounds(routeLine.getBounds(), {padding:[34,34], maxZoom:16});
+        }
+      }
+      document.getElementById('routeStatus').textContent = navigationActive
+        ? 'Navegação ativa · rota atualizada com sua posição.'
+        : 'Rota atual calculada · seus horários de saída foram atualizados.';
+      lastPhase = null;
+      tick();
+    } catch(error){
+      if(error.name === 'AbortError') return;
+      document.getElementById('routeStatus').textContent = 'Não foi possível atualizar a rota agora. Você ainda pode abrir no Google Maps.';
+    }
+  }
+
+  function handlePosition(position, forceRoute){
+    const {latitude, longitude, accuracy, heading, speed} = position.coords;
+    currentLocation = {lat:latitude, lng:longitude, accuracy:accuracy || 30, heading, speed};
+    setLocationState('ready', 'GPS ativo · precisão aproximada de ' + Math.round(currentLocation.accuracy) + ' m');
+    updateUserOnMap(currentLocation);
+    calculateRoute(currentLocation, Boolean(forceRoute));
+  }
+
+  function handleLocationError(error){
+    const messages = {
+      1:'Permita o acesso à localização para traçar a rota atual.',
+      2:'O GPS não conseguiu determinar sua localização.',
+      3:'A localização demorou demais. Tente iniciar novamente.'
+    };
+    const message = messages[error && error.code] || 'A localização não está disponível neste navegador.';
+    if(navigationActive) stopNavigation();
+    setLocationState('error', message);
+    document.getElementById('routeStatus').textContent = message + ' O destino continua disponível no Google Maps.';
+  }
+
+  function requestInitialLocation(){
+    if(!navigator.geolocation){
+      handleLocationError();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      position => handlePosition(position, true),
+      handleLocationError,
+      {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
+    );
+  }
+
+  function startNavigation(){
+    if(navigationActive){
+      stopNavigation();
+      return;
+    }
+    if(!navigator.geolocation){
+      handleLocationError();
+      return;
+    }
+    navigationActive = true;
+    document.getElementById('routeLive').classList.add('visible');
+    const button = document.getElementById('startNavigation');
+    button.querySelector('span').textContent = 'Encerrar navegação';
+    button.classList.add('secondary');
+    button.setAttribute('aria-pressed', 'true');
+    document.getElementById('routeStatus').textContent = 'Iniciando acompanhamento por GPS…';
+    if(currentLocation){
+      updateUserOnMap(currentLocation);
+      calculateRoute(currentLocation, true);
+    }
+    navigationWatchId = navigator.geolocation.watchPosition(
+      position => handlePosition(position, false),
+      handleLocationError,
+      {enableHighAccuracy:true, timeout:15000, maximumAge:3000}
+    );
+  }
+
+  function stopNavigation(){
+    navigationActive = false;
+    document.getElementById('routeLive').classList.remove('visible');
+    const button = document.getElementById('startNavigation');
+    button.querySelector('span').textContent = 'Iniciar navegação';
+    button.classList.remove('secondary');
+    button.setAttribute('aria-pressed', 'false');
+    if(navigationWatchId !== null && navigator.geolocation){
+      navigator.geolocation.clearWatch(navigationWatchId);
+      navigationWatchId = null;
+    }
+    document.getElementById('routeStatus').textContent = currentLocation
+      ? 'Navegação pausada · toque em iniciar para acompanhar novamente.'
+      : 'Navegação pausada.';
   }
 
   function dateKey(date){ return date.getFullYear() + '-' + pad(date.getMonth()+1) + '-' + pad(date.getDate()); }
@@ -721,6 +1119,12 @@
     if(diff === 0) return 'HOJE';
     if(diff === 1) return 'AMANHÃ';
     return DAYS_PT[date.getDay()].toUpperCase() + ' · ' + pad(date.getDate()) + '/' + pad(date.getMonth()+1);
+  }
+
+  function departureDayLabel(date, now){
+    const label = dayLabel(date, now);
+    if(label === 'HOJE' || label === 'AMANHÃ') return label;
+    return label.replace(' · ', ', ');
   }
 
   function findNextClass(now){
@@ -771,13 +1175,23 @@
     document.getElementById('ccRange').textContent = cls.start + ' – ' + cls.end;
     document.getElementById('nextEyebrow').textContent = offset === 0 ? 'Próxima aula' : 'Próxima aula (não é hoje)';
 
-    const t = TRAVEL[origin];
-    const recommended = new Date(start.getTime() - t.max*60000);
-    const limit = new Date(start.getTime() - t.min*60000);
+    const travelMinutes = liveTravelMinutes();
+    const atDestination = currentLocation && distanceInMeters(
+      currentLocation.lat,
+      currentLocation.lng,
+      IMD_DESTINATION.lat,
+      IMD_DESTINATION.lng
+    ) <= Math.max(80, currentLocation.accuracy);
+    const hasCurrentRoute = routeState.durationSeconds !== null;
+    const recommended = new Date(start.getTime() - (travelMinutes + DEPARTURE_BUFFER_MINUTES) * 60000);
+    const limit = new Date(start.getTime() - travelMinutes * 60000);
+    const departureAction = 'SAIA ' + departureDayLabel(date, now) + ' ÀS ' + fmtTime(recommended);
+    const routeExplanation = 'Trajeto consultado agora: ' + travelMinutes + ' min · margem para chegar: ' + DEPARTURE_BUFFER_MINUTES + ' min.';
+    const provisionalExplanation = 'Horário provisório com ' + FALLBACK_TRAVEL_MINUTES + ' min de trajeto e ' + DEPARTURE_BUFFER_MINUTES + ' min de margem. Autorize o GPS para ajustar à sua localização.';
 
     let phase, statusText, detailText;
 
-    if(origin === 'ufrn'){
+    if(atDestination){
       phase = 'waiting';
       if(offset > 0){
         statusText = offset === 1 ? 'PRÓXIMA AULA AMANHÃ' : 'PRÓXIMA AULA EM OUTRO DIA';
@@ -789,32 +1203,38 @@
         statusText = 'VOCÊ JÁ ESTÁ AQUI';
         detailText = 'Sua aula começa às ' + cls.start + '. Suba para a sala ' + cls.room + ' antes desse horário.';
       }
+    } else if(!hasCurrentRoute){
+      phase = offset > 0 ? 'future' : (now >= start ? 'late' : 'waiting');
+      statusText = now < start ? 'ESTIMATIVA: ' + departureAction : 'LOCALIZAÇÃO NECESSÁRIA';
+      detailText = now < start
+        ? provisionalExplanation
+        : 'Permita o acesso ao GPS para calcular a rota e sua previsão de chegada.';
     } else if(offset > 0){
       phase = 'future';
-      statusText = 'PRÓXIMA AULA EM OUTRO DIA';
-      detailText = 'Nenhuma aula pendente hoje. Planeje sair até ' + fmtTime(limit) + ' (ideal ' + fmtTime(recommended) + ') no dia ' + dayLabel(date, now).toLowerCase() + '.';
+      statusText = departureAction;
+      detailText = 'Para chegar ao IMD ' + DEPARTURE_BUFFER_MINUTES + ' min antes da aula das ' + cls.start + '. ' + routeExplanation;
     } else if(now < recommended){
       phase = 'waiting';
-      statusText = 'NO PRAZO';
-      detailText = 'Faltam ' + fmtDuration(recommended - now) + ' para o horário ideal de saída.';
+      statusText = departureAction;
+      detailText = 'Faltam ' + fmtDuration(recommended - now) + ' para sair. ' + routeExplanation;
     } else if(now < limit){
       phase = 'window';
       statusText = 'SAIA AGORA';
       detailText = 'Janela de saída aberta. Limite máximo em ' + fmtDuration(limit - now) + '.';
     } else if(now < start){
-      const arrivalMax = new Date(now.getTime() + t.max*60000);
-      if(arrivalMax <= start){
+      const arrivalEstimate = new Date(now.getTime() + travelMinutes * 60000);
+      if(arrivalEstimate <= start){
         phase = 'tight';
         statusText = 'CORRA! ÚLTIMA CHANCE';
-        detailText = 'Saindo agora ainda dá tempo, com folga de ' + fmtDuration(start - arrivalMax) + '.';
+        detailText = 'Saindo agora ainda dá tempo, com folga de ' + fmtDuration(start - arrivalEstimate) + '.';
       } else {
         phase = 'risk';
-        const delay = Math.round((arrivalMax - start)/60000);
+        const delay = Math.round((arrivalEstimate - start)/60000);
         statusText = 'RISCO DE ATRASO';
-        detailText = 'Saindo agora, atraso estimado de até ' + delay + ' min.';
+        detailText = 'Pela rota atual, chegada estimada com ' + delay + ' min de atraso.';
       }
     } else {
-      const arrival = new Date(now.getTime() + t.max*60000);
+      const arrival = new Date(now.getTime() + travelMinutes * 60000);
       const delay = Math.round((arrival - start)/60000);
       phase = 'late';
       statusText = 'ATRASADO';
@@ -831,11 +1251,12 @@
       lastPhase = phase;
     }
 
-    document.getElementById('departureWindow').innerHTML = origin === 'ufrn'
+    document.getElementById('departureWindow').innerHTML = atDestination
       ? '<span>Local atual: <b>UFRN</b></span><span>Destino: <b>' + cls.room + '</b></span><span>Horário da aula: <b>' + cls.start + '</b></span>'
-      : '<span>Sair (ideal): <b>' + fmtTime(recommended) + '</b></span>' +
-        '<span>Sair (limite): <b>' + fmtTime(limit) + '</b></span>' +
-        '<span>Origem: <b>' + t.label + '</b></span>';
+      : '<span>Saída recomendada: <b>' + departureDayLabel(date, now) + ', ' + fmtTime(recommended) + '</b></span>' +
+        '<span>Último horário: <b>' + fmtTime(limit) + '</b></span>' +
+        '<span>Trajeto: <b>' + travelMinutes + ' min' + (hasCurrentRoute ? ' agora' : ' provisórios') + '</b></span>' +
+        '<span>Origem: <b>localização atual</b></span>';
   }
 
   // ---------- RENDER: TODAY LIST ----------
@@ -885,14 +1306,16 @@
       container.innerHTML = '<p class="empty-note">Sem aulas presenciais programadas amanhã.</p>';
       return;
     }
-    const travel = TRAVEL[origin];
+    const travelMinutes = liveTravelMinutes();
     container.innerHTML = classes.map(c => {
       const start = timeToDate(tomorrow, c.start);
-      const ideal = new Date(start.getTime() - travel.max * 60000);
-      const limit = new Date(start.getTime() - travel.min * 60000);
-      const planning = origin === 'ufrn'
-        ? '<span>Você já estará na <b>UFRN</b></span><span>Suba para: <b>' + c.room + '</b></span><span>Aula: <b>' + c.start + '</b></span>'
-        : '<span>Sair ideal: <b>' + fmtTime(ideal) + '</b></span><span>Limite: <b>' + fmtTime(limit) + '</b></span><span>Origem: <b>' + travel.label + '</b></span>';
+      const ideal = new Date(start.getTime() - (travelMinutes + DEPARTURE_BUFFER_MINUTES) * 60000);
+      const limit = new Date(start.getTime() - travelMinutes * 60000);
+      const hasCurrentRoute = routeState.durationSeconds !== null;
+      const planning = '<span>Saia amanhã: <b>' + fmtTime(ideal) + (hasCurrentRoute ? '' : ' (provisório)') + '</b></span>' +
+        '<span>Último horário: <b>' + fmtTime(limit) + '</b></span>' +
+        '<span>Trajeto: <b>' + travelMinutes + ' min' + (hasCurrentRoute ? ' agora' : ' estimados') + '</b></span>' +
+        '<span>Origem: <b>localização atual</b></span>';
       return '<article class="tomorrow-card"><div class="tomorrow-head"><div><h3>' + c.name + '</h3><div class="tomorrow-meta">' + c.code + ' · ' + c.room + ' · ' + c.prof + '</div></div><time>' + c.start + ' – ' + c.end + '</time></div><div class="tomorrow-window">' + planning + '</div></article>';
     }).join('');
   }
@@ -1028,58 +1451,7 @@
     renderTomorrowPlan(now);
     highlightWeekGrid(now);
     renderSemesterStatus(now);
-  }
-
-  // ---------- ORIGIN TOGGLE ----------
-  function setOrigin(o, note){
-    origin = o;
-    document.getElementById('btnCasa').classList.toggle('active', o === 'casa');
-    document.getElementById('btnIfrn').classList.toggle('active', o === 'ifrn');
-    document.getElementById('btnUfrn').classList.toggle('active', o === 'ufrn');
-    document.getElementById('travelNote').textContent = note || (o === 'ufrn'
-      ? 'você já está no campus — siga para a sala da aula'
-      : 'tempo estimado de deslocamento até o IMD');
-    lastPhase = null; // force flip refresh on origin change
-    tick();
-  }
-  document.getElementById('btnCasa').addEventListener('click', () => setOrigin('casa'));
-  document.getElementById('btnIfrn').addEventListener('click', () => setOrigin('ifrn'));
-  document.getElementById('btnUfrn').addEventListener('click', () => setOrigin('ufrn'));
-
-  function detectCampusLocation(){
-    if(!navigator.geolocation){
-      setOrigin('casa', 'localização indisponível — selecione sua origem');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(position => {
-      const {latitude, longitude, accuracy} = position.coords;
-      if(accuracy > 350){
-        setOrigin('casa', 'localização imprecisa — selecione sua origem');
-        return;
-      }
-      const campus = Object.entries(CAMPUS_LOCATIONS)
-        .map(([key, place]) => ({key, place, distance:distanceInMeters(latitude, longitude, place.lat, place.lng)}))
-        .filter(item => item.distance <= item.place.radius + accuracy)
-        .sort((a,b) => a.distance - b.distance)[0];
-      if(campus){
-        const note = campus.key === 'ufrn'
-          ? 'localização detectada: UFRN — siga para a sala da aula'
-          : 'localização detectada: IFRN Natal-Central';
-        setOrigin(campus.key, note);
-      } else {
-        setOrigin('casa', 'fora de IFRN/UFRN — usando origem genérica');
-      }
-    }, () => {
-      setOrigin('casa', 'localização não autorizada — selecione sua origem');
-    }, {enableHighAccuracy:true, timeout:10000, maximumAge:300000});
-  }
-
-  function initializeLocationDetection(){
-    if(!navigator.geolocation){
-      setOrigin('casa', 'localização indisponível — selecione sua origem');
-      return;
-    }
-    detectCampusLocation();
+    updateRouteStats();
   }
 
   // ---------- VIEW SWITCHER ----------
@@ -1090,6 +1462,7 @@
     document.getElementById('tabPainel').classList.toggle('active', v === 'painel');
     document.getElementById('tabSemana').classList.toggle('active', v === 'semana');
     document.getElementById('tabCalendario').classList.toggle('active', v === 'calendario');
+    if(v === 'painel' && routeMap) setTimeout(() => routeMap.invalidateSize(), 0);
   }
   document.getElementById('tabPainel').addEventListener('click', () => setView('painel'));
   document.getElementById('tabSemana').addEventListener('click', () => setView('semana'));
@@ -1100,9 +1473,11 @@
   document.getElementById('nextMonth').addEventListener('click', () => {
     if(calendarMonth < 11){ calendarMonth++; selectedDate = monthDate(1); renderCalendar(new Date()); }
   });
+  document.getElementById('startNavigation').addEventListener('click', startNavigation);
 
   // ---------- INIT ----------
   buildWeekGrid();
+  initializeRouteMap();
   const initialNow = new Date();
   if(isWithinSemester(initialNow)){
     calendarMonth = initialNow.getMonth();
@@ -1110,10 +1485,16 @@
   }
   renderCalendar(initialNow);
   renderSemesterMap(initialNow);
-  initializeLocationDetection();
   setView('painel');
   tick();
+  requestInitialLocation();
   setInterval(tick, 1000);
+  setInterval(() => {
+    if(currentLocation && !navigationActive) calculateRoute(currentLocation, true);
+  }, PLANNING_ROUTE_REFRESH_INTERVAL);
+  window.addEventListener('beforeunload', () => {
+    if(navigationWatchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(navigationWatchId);
+  });
 
 })();
 </script>
