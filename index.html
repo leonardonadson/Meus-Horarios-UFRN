@@ -828,6 +828,9 @@
   const ROUTE_REFRESH_DISTANCE = 35;
   const ROUTE_REFRESH_INTERVAL = 20000;
   const PLANNING_ROUTE_REFRESH_INTERVAL = 120000;
+  // Calibrado pela comparação local: OSRM 13 min × 2,08 ≈ 27 min.
+  // A correção compensa semáforos, cruzamentos e reduções que o perfil padrão subestima.
+  const ROUTE_DURATION_FACTOR = 27 / 13;
   const FALLBACK_TRAVEL_MINUTES = 35;
   const DEPARTURE_BUFFER_MINUTES = 10;
 
@@ -986,11 +989,12 @@
       const data = await response.json();
       if(data.code !== 'Ok' || !data.routes || !data.routes[0]) throw new Error('route-not-found');
       const route = data.routes[0];
-      routeState = {durationSeconds:route.duration, distanceMeters:route.distance, arrival:new Date(Date.now() + route.duration * 1000)};
+      const adjustedDuration = Math.round(route.duration * ROUTE_DURATION_FACTOR);
+      routeState = {durationSeconds:adjustedDuration, distanceMeters:route.distance, arrival:new Date(Date.now() + adjustedDuration * 1000)};
       lastRouteLocation = {lat:location.lat, lng:location.lng};
       lastRouteAt = Date.now();
       updateRouteStats();
-      setLocationState('ready', 'GPS ativo · trajeto consultado agora: ' + formatRouteDuration(route.duration));
+      setLocationState('ready', 'GPS ativo · estimativa ajustada agora: ' + formatRouteDuration(adjustedDuration));
 
       if(routeMap){
         if(routeLine) routeMap.removeLayer(routeLine);
